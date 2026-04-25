@@ -1,0 +1,25 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Output files from old.py
+missing_brand_field.txt
+missing_category_collection.txt
+missing_brands.txt
+
+# OS
+.DS_Store
+Thumbs.db
