@@ -121,6 +121,8 @@ class ShopifyClient:
             },
             timeout=30,
         )
+        if resp.status_code >= 400:
+            log.error("Auth failed (%d): %s", resp.status_code, resp.text)
         resp.raise_for_status()
         token = resp.json()["access_token"]
         self._session.headers.update({
