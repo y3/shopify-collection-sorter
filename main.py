@@ -340,11 +340,11 @@ def main() -> None:
 
     interval_min = config.interval_seconds // 60
     log.info("OOS Sorter started — interval: %d min", interval_min)
+    client.authenticate()
 
     while True:
         log.info("=== Run started ===")
         try:
-            client.authenticate()
             sorter.run_once()
         except KeyboardInterrupt:
             log.info("Stopped by user")
