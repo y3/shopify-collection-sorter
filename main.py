@@ -112,6 +112,7 @@ class ShopifyClient:
 
     def authenticate(self) -> None:
         """Fetch a fresh access token and inject it into the session headers."""
+        self._session.headers.pop("X-Shopify-Access-Token", None)
         resp = self._session.post(
             f"https://{self.config.shop_url}/admin/oauth/access_token",
             data={
@@ -139,6 +140,11 @@ class ShopifyClient:
                 json={"query": query, "variables": variables or {}},
                 timeout=30,
             )
+
+            if resp.status_code == 401:
+                log.warning("Token expired — re-authenticating")
+                self.authenticate()
+                continue
 
             if resp.status_code == 429:
                 wait = 2 ** attempt
