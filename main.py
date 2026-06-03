@@ -109,6 +109,7 @@ class ShopifyClient:
         self._api_url = (
             f"https://{config.shop_url}/admin/api/{config.api_version}/graphql.json"
         )
+        self._token_expires_at: float = 0
 
     def authenticate(self) -> None:
         """Fetch a fresh access token and inject it into the session headers."""
@@ -123,18 +124,28 @@ class ShopifyClient:
             timeout=30,
         )
         if resp.status_code >= 400:
-            log.error("Auth failed (%d): %s", resp.status_code, resp.text)
+            log.error("Auth failed (%d): body=%r  headers=%s",
+                      resp.status_code, resp.text, dict(resp.headers))
         resp.raise_for_status()
-        token = resp.json()["access_token"]
+        data = resp.json()
+        token = data["access_token"]
+        expires_in = int(data.get("expires_in", 86399))
+        self._token_expires_at = time.time() + expires_in - 300  # refresh 5 min early
         self._session.headers.update({
             "Content-Type": "application/json",
             "X-Shopify-Access-Token": token,
         })
-        log.debug("Authenticated with Shopify")
+        log.debug("Authenticated with Shopify (token valid for %ds)", expires_in)
+
+    def _ensure_fresh_token(self) -> None:
+        if time.time() >= self._token_expires_at:
+            log.info("Token near expiry — refreshing proactively")
+            self.authenticate()
 
     def gql(self, query: str, variables: dict | None = None, retries: int = 3) -> dict:
         """Execute a GraphQL request with retry and throttle handling."""
         for attempt in range(retries):
+            self._ensure_fresh_token()
             resp = self._session.post(
                 self._api_url,
                 json={"query": query, "variables": variables or {}},
@@ -142,8 +153,8 @@ class ShopifyClient:
             )
 
             if resp.status_code == 401:
-                log.warning("Token expired — re-authenticating")
-                self.authenticate()
+                log.warning("Token rejected by API — forcing re-auth")
+                self._token_expires_at = 0
                 continue
 
             if resp.status_code == 429:
