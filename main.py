@@ -114,6 +114,7 @@ class ShopifyClient:
     def authenticate(self) -> None:
         """Fetch a fresh access token and inject it into the session headers."""
         self._session.headers.pop("X-Shopify-Access-Token", None)
+        self._session.headers.pop("Content-Type", None)
         resp = self._session.post(
             f"https://{self.config.shop_url}/admin/oauth/access_token",
             data={
